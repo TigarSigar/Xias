@@ -1,0 +1,30 @@
+# AI-агент (Antigravity internal)
+.agents/
+
+# Node
+node_modules/
+package-lock.json
+
+# Секреты и личные данные
+.env
+mcp-server/.env
+mcp-server/data/eios_cache.json
+
+# Временные загрузки
+mcp-server/downloads/
+
+# Временные debug-скрипты (сгенерированы агентом, не нужны в репо)
+mcp-server/test-*.js
+mcp-server/check-*.py
+mcp-server/check-*.js
+mcp-server/find-*.js
+mcp-server/fetch-*.js
+mcp-server/dump-*.js
+mcp-server/probe-*.js
+mcp-server/search-*.js
+mcp-server/temp_*.html
+mcp-server/temp_*.db
+
+# OS
+.DS_Store
+Thumbs.db

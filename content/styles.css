@@ -1,0 +1,1038 @@
+/* ==========================================================
+   XIAS Modern Dashboard Styles (ЭИОС+ КемГУ)
+   ========================================================== */
+
+:root {
+  --xias-primary: #4f46e5;
+  --xias-primary-hover: #4338ca;
+  --xias-primary-light: #eef2ff;
+  --xias-bg: #f8fafc;
+  --xias-card-bg: #ffffff;
+  --xias-text-main: #0f172a;
+  --xias-text-muted: #64748b;
+  --xias-border: #e2e8f0;
+  --xias-success: #10b981;
+  --xias-success-light: #d1fae5;
+  --xias-warning: #f59e0b;
+  --xias-warning-light: #fef3c7;
+  --xias-danger: #ef4444;
+  --xias-danger-light: #fee2e2;
+  --xias-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --xias-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --xias-radius: 12px;
+}
+
+/* Global Container */
+#xias-app-root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--xias-text-main);
+  background-color: var(--xias-bg);
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24px;
+  position: relative;
+  z-index: 100;
+}
+
+#xias-app-root * {
+  box-sizing: border-box;
+}
+
+/* Header */
+.xias-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--xias-card-bg);
+  padding: 18px 24px;
+  border-radius: var(--xias-radius);
+  box-shadow: var(--xias-shadow);
+  border: 1px solid var(--xias-border);
+  margin-bottom: 20px;
+}
+
+.xias-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.xias-logo-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 800;
+  font-size: 20px;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+}
+
+.xias-title-box h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.xias-pill-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--xias-primary-light);
+  color: var(--xias-primary);
+}
+
+.xias-title-box p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--xias-text-muted);
+}
+
+/* User Info Box */
+.xias-user-info {
+  text-align: right;
+}
+
+.xias-user-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.xias-user-meta {
+  font-size: 12px;
+  color: var(--xias-text-muted);
+}
+
+/* Stats Row */
+.xias-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.xias-stat-card {
+  background: var(--xias-card-bg);
+  padding: 16px;
+  border-radius: var(--xias-radius);
+  border: 1px solid var(--xias-border);
+  box-shadow: var(--xias-shadow);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.xias-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.xias-stat-val {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.xias-stat-lbl {
+  font-size: 12px;
+  color: var(--xias-text-muted);
+}
+
+/* Controls Bar */
+.xias-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--xias-card-bg);
+  padding: 14px 18px;
+  border-radius: var(--xias-radius);
+  border: 1px solid var(--xias-border);
+  margin-bottom: 20px;
+}
+
+.xias-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.xias-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--xias-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+}
+
+.xias-tab-btn.active {
+  background: var(--xias-primary);
+  color: #fff;
+}
+
+.xias-tab-btn:hover:not(.active) {
+  background: #f1f5f9;
+  color: var(--xias-text-main);
+}
+
+.xias-tab-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.xias-tab-dot.dot-todo {
+  background-color: var(--xias-danger);
+}
+
+.xias-tab-dot.dot-review {
+  background-color: var(--xias-warning);
+}
+
+.xias-tab-dot.dot-done {
+  background-color: var(--xias-success);
+}
+
+.xias-inline-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: -0.15em;
+  margin-right: 4px;
+}
+
+.xias-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.xias-search-input {
+  padding: 8px 14px;
+  border: 1px solid var(--xias-border);
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+  min-width: 220px;
+  transition: border-color 0.2s;
+}
+
+.xias-search-input:focus {
+  border-color: var(--xias-primary);
+}
+
+/* Buttons */
+.xias-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.xias-btn-primary {
+  background: var(--xias-primary);
+  color: #fff;
+}
+
+.xias-btn-primary:hover {
+  background: var(--xias-primary-hover);
+}
+
+.xias-btn-outline {
+  background: transparent;
+  border-color: var(--xias-border);
+  color: var(--xias-text-main);
+}
+
+.xias-btn-outline:hover {
+  background: #f1f5f9;
+}
+
+.xias-btn-ticktick {
+  background: #605DEC;
+  color: #ffffff;
+}
+
+.xias-btn-ticktick:hover {
+  background: #4B49C8;
+}
+
+.xias-btn-synced {
+  background: #f8fafc;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.xias-btn-synced:hover {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #047857;
+}
+
+.xias-btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* Courses Grid */
+.xias-courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 20px;
+}
+
+.xias-course-card {
+  background: var(--xias-card-bg);
+  border-radius: var(--xias-radius);
+  border: 1px solid var(--xias-border);
+  box-shadow: var(--xias-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.xias-course-card:hover {
+  box-shadow: var(--xias-shadow-lg);
+  transform: translateY(-2px);
+}
+
+.xias-card-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--xias-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fafafa;
+}
+
+.xias-course-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  line-height: 1.3;
+}
+
+.xias-course-teacher {
+  font-size: 13px;
+  color: var(--xias-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.xias-card-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.xias-score-badge {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.xias-score-badge.has-score {
+  background: var(--xias-success-light);
+  color: #065f46;
+}
+
+/* Assignments inside card */
+.xias-assignments-list {
+  padding: 12px 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.xias-no-tasks-state {
+  padding: 18px 14px;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px dashed var(--xias-border);
+}
+
+.xias-no-tasks-desc {
+  font-size: 12px;
+  color: var(--xias-text-muted);
+  line-height: 1.4;
+}
+
+.xias-task-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  gap: 12px;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.xias-task-row:hover {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.xias-task-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.xias-task-header-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.xias-task-teacher {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6366f1;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.xias-task-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--xias-text-main);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.xias-task-meta {
+  font-size: 11px;
+  color: var(--xias-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.xias-task-deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.xias-task-attach-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  background: #e2e8f0;
+  color: #475569;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.xias-task-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.xias-status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+}
+
+.xias-status-TODO {
+  background: var(--xias-danger-light);
+  color: var(--xias-danger);
+}
+
+.xias-status-REVIEW {
+  background: var(--xias-warning-light);
+  color: #b45309;
+}
+
+.xias-status-DONE {
+  background: var(--xias-success-light);
+  color: #047857;
+}
+
+.xias-card-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--xias-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+}
+
+/* Auto-login Badge */
+.xias-badge {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #1e293b;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: xiasSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.xias-badge.error {
+  background: #b91c1c;
+}
+
+/* Quick Jump Button on EIOS */
+.xias-quick-jump-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: #ffffff !important;
+  padding: 14px 22px;
+  border-radius: 50px;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 99999;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.xias-quick-jump-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(79, 70, 229, 0.5);
+}
+
+/* Spinner */
+.xias-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: xiasSpin 0.8s linear infinite;
+}
+
+@keyframes xiasSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes xiasSlideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Injected buttons on legacy tasks_st.htm */
+.xias-inline-ticktick-btn {
+  background: #605DEC;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 6px;
+  transition: background 0.2s;
+}
+
+.xias-inline-ticktick-btn:hover {
+  background: #4B49C8;
+}
+
+.xias-inline-ticktick-btn.synced {
+  background: #10B981;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.xias-inline-ticktick-btn.synced:hover {
+  background: #059669;
+}
+
+/* ==========================================================
+   Task Modal / Bubble Styles
+   ========================================================== */
+
+.xias-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: xiasFadeIn 0.2s ease-out;
+  box-sizing: border-box;
+}
+
+.xias-task-modal {
+  background: #ffffff;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  border-radius: var(--xias-radius);
+  border: 1px solid var(--xias-border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: xiasModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.xias-modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--xias-border);
+  background: #fafafa;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.xias-modal-eyebrow {
+  font-size: 13px;
+  color: var(--xias-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.xias-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--xias-text-main);
+  line-height: 1.35;
+}
+
+.xias-modal-close-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--xias-text-muted);
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.xias-modal-close-btn:hover {
+  background: #f1f5f9;
+  color: var(--xias-text-main);
+  border-color: var(--xias-border);
+}
+
+.xias-modal-body {
+  padding: 22px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.xias-modal-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.xias-modal-stat-box {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.xias-modal-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--xias-text-muted);
+  font-weight: 600;
+}
+
+.xias-modal-stat-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--xias-text-main);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.xias-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.xias-modal-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--xias-text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.xias-teacher-comment-box {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-left: 3px solid #f59e0b;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #92400e;
+  line-height: 1.45;
+}
+
+.xias-attachments-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.xias-attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--xias-border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--xias-primary);
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.xias-attachment-link:hover {
+  background: var(--xias-primary-light);
+  border-color: #c7d2fe;
+}
+
+/* Submission Section */
+.xias-submission-box {
+  border-top: 1px solid var(--xias-border);
+  padding-top: 18px;
+  margin-top: 4px;
+}
+
+.xias-auto-zip-notice {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #166534;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.4;
+}
+
+.xias-dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 22px 18px;
+  text-align: center;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.xias-dropzone:hover,
+.xias-dropzone.dragover {
+  border-color: var(--xias-primary);
+  background-color: var(--xias-primary-light);
+}
+
+.xias-dropzone-icon {
+  color: var(--xias-primary);
+  margin-bottom: 2px;
+}
+
+.xias-dropzone-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--xias-text-main);
+}
+
+.xias-link-btn {
+  background: transparent;
+  border: none;
+  color: var(--xias-primary);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  font-size: 13px;
+}
+
+.xias-link-btn:hover {
+  color: var(--xias-primary-hover);
+}
+
+.xias-dropzone-desc {
+  font-size: 11px;
+  color: var(--xias-text-muted);
+}
+
+.xias-file-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.xias-file-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid var(--xias-border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.xias-file-chip.is-zipped {
+  border-color: #c7d2fe;
+  background: #faf5ff;
+}
+
+.xias-file-chip-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.xias-file-chip-name {
+  font-weight: 600;
+  color: var(--xias-text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xias-file-chip-size {
+  font-size: 11px;
+  color: var(--xias-text-muted);
+}
+
+.xias-badge-zip {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.xias-badge-raw {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.xias-download-chip-btn {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  color: #4338ca;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.15s;
+}
+
+.xias-download-chip-btn:hover {
+  background: #e0e7ff;
+}
+
+.xias-remove-chip-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--xias-text-muted);
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.xias-remove-chip-btn:hover {
+  background: #fee2e2;
+  color: var(--xias-danger);
+}
+
+.xias-modal-comment-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.xias-modal-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--xias-text-muted);
+}
+
+.xias-modal-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--xias-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.xias-modal-textarea:focus {
+  border-color: var(--xias-primary);
+}
+
+.xias-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.xias-modal-status-msg {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.xias-modal-status-msg.success {
+  color: var(--xias-success);
+}
+
+.xias-modal-status-msg.error {
+  color: var(--xias-danger);
+}
+
+@keyframes xiasFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes xiasModalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes xiasSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.xias-spinning {
+  animation: xiasSpin 1s linear infinite;
+  display: inline-block;
+}
+
+.xias-modal-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--xias-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.xias-modal-input:focus {
+  border-color: var(--xias-primary);
+}
+
+.xias-sync-status {
+  font-size: 12px;
+  color: var(--xias-text-muted);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+

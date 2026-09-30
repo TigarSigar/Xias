@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>ЭИОС КемГУ — Вход в систему</title>
+</head>
+<body>
+  <div id="root" data-reactroot="">
+    <div class="login-page-container">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="kemsu-emblem">КемГУ</div>
+          <h2>Электронная информационно-образовательная среда</h2>
+          <p>Вход для студентов и преподавателей</p>
+        </div>
+        <form class="login-form" method="POST" action="/main/auth">
+          <div class="form-group">
+            <label for="login-field">Логин или номер зачетной книжки</label>
+            <input 
+              id="login-field"
+              type="text" 
+              name="username" 
+              placeholder="Введите логин" 
+              autocomplete="username"
+              class="form-control"
+              value=""
+            />
+          </div>
+          <div class="form-group">
+            <label for="password-field">Пароль</label>
+            <input 
+              id="password-field"
+              type="password" 
+              name="password" 
+              placeholder="Введите пароль" 
+              autocomplete="current-password"
+              class="form-control"
+              value=""
+            />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary submit-btn">Войти</button>
+          </div>
+        </form>
+        <div class="login-footer">
+          <a href="/recovery">Забыли пароль?</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

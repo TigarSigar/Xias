@@ -1,0 +1,25 @@
+{
+  "name": "xias",
+  "version": "1.0.0",
+  "description": "XIAS — Modern interface and synchronization extension for KemSU portal",
+  "main": "background/background.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:manifest": "node --test tests/manifest.test.js",
+    "test:parser": "node --test tests/parser.test.js",
+    "test:autologin": "node --test tests/autologin.test.js",
+    "test:keepalive": "node --test tests/keepalive.test.js",
+    "test:ticktick": "node --test tests/ticktick.test.js",
+    "test:anti-slop": "node --test tests/anti_slop.test.js"
+  },
+  "keywords": [
+    "chrome-extension",
+    "manifest-v3",
+    "kemsu",
+    "ticktick",
+    "anti-slop"
+  ],
+  "author": "XIAS Team",
+  "license": "MIT"
+}

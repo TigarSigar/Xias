@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>XIAS — Настройки</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-box">
+        <div class="logo">X</div>
+        <div>
+          <h2>XIAS</h2>
+          <span>ЭИОС+ КемГУ & TickTick</span>
+        </div>
+      </div>
+      <span class="badge" id="conn-status">Активно</span>
+    </div>
+
+    <!-- Section: TickTick Integration -->
+    <div class="section">
+      <div class="section-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Интеграция с TickTick</span>
+      </div>
+
+      <div class="form-group">
+        <label for="ticktick-token">
+          Токен TickTick (API Access Token):
+          <a href="https://developer.ticktick.com/manage" target="_blank" class="help-link">Где взять?</a>
+        </label>
+        <input type="password" id="ticktick-token" placeholder="Вставьте ваш токен TickTick">
+      </div>
+
+      <div class="form-group">
+        <label for="ticktick-project">Список / Проект в TickTick:</label>
+        <input type="text" id="ticktick-project" value="КемГУ / Учёба">
+      </div>
+
+      <div class="btn-row">
+        <button id="btn-test-ticktick" class="btn btn-secondary">Проверить токен</button>
+        <span id="ticktick-status-msg" class="status-msg"></span>
+      </div>
+    </div>
+
+    <!-- Section: Auto-login -->
+    <div class="section">
+      <div class="section-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span>Автологин в ЭИОС</span>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="autologin-enabled" checked>
+        <label for="autologin-enabled">Включить бесшовный автологин</label>
+      </div>
+
+      <div class="form-group">
+        <label for="eios-login">Логин / Номер зачетки:</label>
+        <input type="text" id="eios-login" placeholder="stud12345" autocomplete="username">
+      </div>
+
+      <div class="form-group">
+        <label for="eios-password">Пароль:</label>
+        <input type="password" id="eios-password" placeholder="Пароль от ЭИОС" autocomplete="current-password">
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="keepalive-enabled" checked>
+        <label for="keepalive-enabled">Фоновый Keep-Alive (предотвращать разлогин)</label>
+      </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="section actions-section">
+      <button id="btn-open-eios" class="btn btn-primary" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <span>Открыть ИнфоОУПро</span>
+      </button>
+      <button id="btn-clear-cache" class="btn btn-outline" title="Очистить сохраненные лабы для повторного парсинга" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        <span>Сбросить кэш</span>
+      </button>
+    </div>
+
+    <!-- Footer message -->
+    <div id="save-status" class="footer-msg">Настройки сохраняются автоматически</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

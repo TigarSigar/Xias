@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "XIAS — ЭИОС+ КемГУ",
+  "version": "1.0.0",
+  "description": "Современный интерфейс для ЭИОС КемГУ (ИнфоОУПро), бесшовный автологин, защита от разлогина и синхронизация задач с TickTick.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Настройки XIAS (ЭИОС+)",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "permissions": [
+    "storage",
+    "alarms",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.kemsu.ru/*",
+    "https://api.ticktick.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.kemsu.ru/*",
+        "*://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "content/parser.js",
+        "content/ticktick_client.js",
+        "content/zip_helper.js",
+        "content/autologin.js",
+        "content/ui.js",
+        "content/content.js"
+      ],
+      "css": [
+        "content/styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
