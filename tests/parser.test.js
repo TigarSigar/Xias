@@ -328,4 +328,92 @@ test('XIASParser Unit and Opaque-Box DOM Parsing Suite', async (t) => {
       'tasksUrl must not contain double /stud/stud/'
     );
   });
+
+  await t.test('c_id extraction from row and URL generation with c_id parameter', () => {
+    const htmlWithCid = `
+      <table>
+        <tr>
+          <th>№</th>
+          <th>Дисциплина</th>
+          <th>Отчетность</th>
+          <th>Уч. год</th>
+          <th>Часы</th>
+          <th>Период</th>
+          <th>Преподаватель</th>
+          <th>Баллы</th>
+          <th>Действия</th>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td>Разработка бизнес приложений</td>
+          <td>Зачет</td>
+          <td>2026-2027</td>
+          <td>108</td>
+          <td>1 сем.</td>
+          <td>Пасютин А. С.</td>
+          <td>0</td>
+          <td>
+            <input type="hidden" name="c_id" value="13368">
+            <a href="course_st/tasks_st.htm"><img src="l.gif"></a>
+          </td>
+        </tr>
+      </table>
+    `;
+    const { parser } = loadParser(htmlWithCid, 'https://xiais.kemsu.ru/proc/stud/index.shtm');
+    const courses = parser.parseCoursesFromIndex();
+
+    assert.equal(courses.length, 1);
+    assert.equal(courses[0].c_id, '13368');
+    assert.equal(
+      courses[0].tasksUrl,
+      'https://xiais.kemsu.ru/proc/stud/course_st/tasks_st.htm?c_id=13368'
+    );
+  });
+
+  await t.test('Course mismatch detection in parseTasksFromDocument prevents cross-course contamination', () => {
+    const docHtml = `
+      <html>
+        <body>
+          <h2>Дисциплина : Тестирование программного обеспечения</h2>
+          <h3>Преподаватель : Бурмин Л. Н.</h3>
+          <table>
+            <tr>
+              <td>Наименование задания</td>
+              <td>Требуется ли файл</td>
+              <td>Примечание</td>
+              <td>Контрольная дата</td>
+              <td>Максимальный балл</td>
+              <td>Балл за работу</td>
+              <td>Состояние</td>
+              <td>Действия</td>
+            </tr>
+            <tr>
+              <td>Чек листы и тест кейсы</td>
+              <td>Да</td>
+              <td></td>
+              <td>15-10-2026</td>
+              <td>10</td>
+              <td>0</td>
+              <td>Не сдано</td>
+              <td><a href="send_task.htm?t=1">Сдать</a></td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+    const { parser, window } = loadParser('', 'https://xiais.kemsu.ru/proc/stud/course_st/tasks_st.htm');
+    const doc = new window.DOMParser().parseFromString(docHtml, 'text/html');
+
+    // When requested with mismatched course name (e.g., 'Разработка бизнес приложений')
+    const mismatched = parser.parseTasksFromDocument(doc, 'Разработка бизнес приложений', 'Пасютин А. С.');
+    assert.equal(mismatched.isMismatch, true, 'Must flag isMismatch as true');
+    assert.equal(mismatched.assignments.length, 0, 'Assignments must be empty on mismatch');
+    assert.equal(mismatched.courseName, 'Тестирование программного обеспечения');
+
+    // When requested with matching course name
+    const matched = parser.parseTasksFromDocument(doc, 'Тестирование программного обеспечения', 'Бурмин Л. Н.');
+    assert.equal(matched.isMismatch, undefined, 'Must not flag mismatch when names match');
+    assert.equal(matched.assignments.length, 1);
+    assert.equal(matched.assignments[0].title, 'Чек листы и тест кейсы');
+  });
 });

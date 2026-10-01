@@ -495,5 +495,70 @@ test('XIAS UI Modal and Task Bubble Unit Tests', async (t) => {
     assert.ok(stored.xiasCachedAssignments['Тестирование программного обеспечения']);
     assert.equal(stored.xiasCachedAssignments['Тестирование программного обеспечения'].length, 1);
   });
+
+  await t.test('renderDashboard decontaminates testing tasks from non-testing courses in storage', async () => {
+    const initialStorage = {
+      xiasCachedAssignments: {
+        'Основы научной деятельности': [
+          {
+            uniqueId: 't_qa_err_1',
+            title: 'Чек листы и тест кейсы',
+            status: 'TODO',
+            statusLabel: 'Нужно сделать',
+            teacher: 'Бурмин Л. Н.'
+          },
+          {
+            uniqueId: 't_real_ond_1',
+            title: 'Практическое занятие 1. Работа с библиографией',
+            status: 'TODO',
+            statusLabel: 'Нужно сделать',
+            teacher: 'Бондарева Л. В.'
+          }
+        ],
+        'Тестирование программного обеспечения': [
+          {
+            uniqueId: 't_qa_real_1',
+            title: 'Чек листы и тест кейсы',
+            status: 'TODO',
+            statusLabel: 'Нужно сделать',
+            teacher: 'Бурмин Л. Н.'
+          }
+        ]
+      }
+    };
+
+    const { UI, chrome } = setupUiEnv(initialStorage);
+    const courses = [
+      {
+        id: 'c_ond',
+        name: 'Основы научной деятельности',
+        teacher: 'Бондарева Л. В.',
+        score: 0
+      },
+      {
+        id: 'c_tpo',
+        name: 'Тестирование программного обеспечения',
+        teacher: 'Бурмин Л. Н.',
+        score: 0
+      }
+    ];
+
+    await UI.renderDashboard(courses, { name: 'Студент' });
+
+    // Verify course assignments were cleansed
+    const ond = courses.find(c => c.name === 'Основы научной деятельности');
+    assert.equal(ond.assignments.length, 1);
+    assert.equal(ond.assignments[0].title, 'Практическое занятие 1. Работа с библиографией');
+
+    const tpo = courses.find(c => c.name === 'Тестирование программного обеспечения');
+    assert.equal(tpo.assignments.length, 1);
+    assert.equal(tpo.assignments[0].title, 'Чек листы и тест кейсы');
+
+    // Storage check
+    const stored = await chrome.storage.local.get(['xiasCachedAssignments']);
+    assert.equal(stored.xiasCachedAssignments['Основы научной деятельности'].length, 1);
+    assert.equal(stored.xiasCachedAssignments['Основы научной деятельности'][0].title, 'Практическое занятие 1. Работа с библиографией');
+    assert.equal(stored.xiasCachedAssignments['Тестирование программного обеспечения'].length, 1);
+  });
 });
 

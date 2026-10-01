@@ -112,6 +112,27 @@ window.XIASParser = {
       const scoreRaw = cells[7] ? this.getText(cells[7]) : '0';
       const score = parseFloat(scoreRaw.replace(',', '.')) || 0;
 
+      // 0. Извлечение c_id дисциплины
+      let cId = '';
+      const cIdInput = row.querySelector('input[name="c_id"], input[name="id"]');
+      if (cIdInput && cIdInput.value) {
+        cId = cIdInput.value.trim();
+      }
+      if (!cId) {
+        const allInputs = Array.from(row.querySelectorAll('input'));
+        for (const inp of allInputs) {
+          if ((inp.name === 'c_id' || inp.name === 'id') && inp.value) {
+            cId = inp.value.trim();
+            break;
+          }
+        }
+      }
+      if (!cId) {
+        const rowHtml = row.innerHTML || '';
+        const mCid = rowHtml.match(/name=["']?c_id["']?\s+value=["']?(\d+)["']?/i) || rowHtml.match(/value=["']?(\d+)["']?\s+name=["']?c_id["']?/i);
+        if (mCid) cId = mCid[1];
+      }
+
       // Ищем элемент действия (иконка лупы, ссылка или кнопка отправки)
       let actionEl = null;
       let rawTasksUrl = '';
@@ -182,7 +203,9 @@ window.XIASParser = {
       }
 
       let tasksUrl = '';
-      if (rawTasksUrl && !rawTasksUrl.startsWith('javascript:')) {
+      if (cId) {
+        tasksUrl = `https://xiais.kemsu.ru/proc/stud/course_st/tasks_st.htm?c_id=${encodeURIComponent(cId)}`;
+      } else if (rawTasksUrl && !rawTasksUrl.startsWith('javascript:')) {
         try {
           const URLClass = (typeof URL !== 'undefined') ? URL : (typeof window !== 'undefined' ? window.URL : globalThis.URL);
           const base = (rawTasksUrl.startsWith('stud/') || rawTasksUrl.startsWith('/stud/'))
@@ -190,6 +213,9 @@ window.XIASParser = {
             : 'https://xiais.kemsu.ru/proc/stud/';
           tasksUrl = new URLClass(rawTasksUrl, base).href;
           tasksUrl = tasksUrl.replace(/\/stud\/stud\//g, '/stud/');
+          if (cId && !tasksUrl.includes('c_id=')) {
+            tasksUrl += (tasksUrl.includes('?') ? '&' : '?') + 'c_id=' + encodeURIComponent(cId);
+          }
         } catch (e) {
           tasksUrl = rawTasksUrl;
         }
@@ -208,6 +234,7 @@ window.XIASParser = {
         score,
         scoreRaw,
         actionElement: actionEl,
+        c_id: cId,
         tasksUrl,
         formAction,
         formMethod,
@@ -227,16 +254,14 @@ window.XIASParser = {
   parseTasksFromDocument(doc = (typeof document !== 'undefined' ? document : null), explicitCourseName = '', explicitTeacher = '') {
     if (!doc) return { courseName: '', teacher: '', assignments: [] };
 
-    // 1. Извлекаем название текущей дисциплины и преподавателя
-    let courseName = explicitCourseName || '';
-    let teacher = explicitTeacher || '';
+    // 1. Извлекаем название текущей дисциплины и преподавателя из самого документа
+    let docCourseName = '';
+    let docTeacher = '';
     const bodyText = doc.body ? (doc.body.textContent || doc.body.innerText || '') : '';
     const isValid = (s) => this.isValidEntityName(s);
     const clean = (s) => this.cleanEntityName(s);
 
-    if (!isValid(courseName) && doc) {
-      courseName = '';
-
+    if (doc) {
       // 1.1 Поиск в заголовках и текстовых элементах страницы
       const elements = Array.from(doc.querySelectorAll('h1, h2, h3, h4, th, td, b, span, p'));
       for (const el of elements) {
@@ -245,14 +270,14 @@ window.XIASParser = {
         if (m && m[1] && !m[1].startsWith('->') && !m[1].toLowerCase().includes('задания') && m[1].length < 120) {
           const cand = clean(m[1]);
           if (isValid(cand)) {
-            courseName = cand;
+            docCourseName = cand;
             break;
           }
         }
       }
 
       // 1.2 Если в таблице пара или тройка ячеек <td>Дисциплина</td> <td>:</td> <td>Название</td>
-      if (!courseName) {
+      if (!docCourseName) {
         const labelCell = elements.find(el => {
           const t = this.getText(el).toLowerCase().trim();
           return t === 'дисциплина:' || t === 'дисциплина';
@@ -262,7 +287,7 @@ window.XIASParser = {
           while (sib) {
             const cand = clean(this.getText(sib));
             if (isValid(cand) && cand.length < 120 && !cand.toLowerCase().includes('задания')) {
-              courseName = cand;
+              docCourseName = cand;
               break;
             }
             sib = sib.nextElementSibling;
@@ -271,19 +296,18 @@ window.XIASParser = {
       }
 
       // 1.3 Fallback: regex по тексту страницы
-      if (!courseName) {
+      if (!docCourseName) {
         const courseMatch = bodyText.match(/Дисциплина\s*[:\-–—]?\s*([^\n\r\t<\[\]]+)/i);
         if (courseMatch && !courseMatch[1].includes('->')) {
           const cand = clean(courseMatch[1]);
           if (isValid(cand)) {
-            courseName = cand;
+            docCourseName = cand;
           }
         }
       }
     }
 
-    if (!isValid(teacher) && doc) {
-      teacher = '';
+    if (doc) {
       const elements = Array.from(doc.querySelectorAll('th, td, b, span, p'));
       for (const el of elements) {
         const t = this.getText(el);
@@ -291,7 +315,7 @@ window.XIASParser = {
         if (m && m[1] && m[1].length < 80) {
           const cand = clean(m[1]);
           if (isValid(cand)) {
-            teacher = cand;
+            docTeacher = cand;
             break;
           }
         }
@@ -300,32 +324,50 @@ window.XIASParser = {
           while (sib) {
             const cand = clean(this.getText(sib));
             if (isValid(cand) && cand.length < 80) {
-              teacher = cand;
+              docTeacher = cand;
               break;
             }
             sib = sib.nextElementSibling;
           }
-          if (teacher) break;
+          if (docTeacher) break;
 
           if (el.nextSibling && (el.nextSibling.textContent || el.nextSibling.nodeValue)) {
             const nextTxt = clean(el.nextSibling.textContent || el.nextSibling.nodeValue || '');
             if (isValid(nextTxt) && nextTxt.length < 80) {
-              teacher = nextTxt;
+              docTeacher = nextTxt;
               break;
             }
           }
         }
       }
-      if (!teacher) {
+      if (!docTeacher) {
         const teacherMatch = bodyText.match(/Преподаватель\s*[:\-–—]?\s*([^\n\r\t<\[\]]+)/i);
         if (teacherMatch) {
           const cand = clean(teacherMatch[1]);
           if (isValid(cand)) {
-            teacher = cand;
+            docTeacher = cand;
           }
         }
       }
     }
+
+    // Проверка на несовпадение предмета:
+    // Если явно передан ожидаемый предмет, а в документе обнаружен другой
+    const normalize = (s) => (s || '').toLowerCase().replace(/[^a-zа-яё0-9]/gi, '');
+    const normExplicit = normalize(explicitCourseName);
+    const normDoc = normalize(docCourseName);
+
+    if (normExplicit && normDoc && normExplicit !== normDoc && !normExplicit.includes(normDoc) && !normDoc.includes(normExplicit)) {
+      return {
+        courseName: docCourseName,
+        teacher: docTeacher || explicitTeacher || '',
+        assignments: [],
+        isMismatch: true
+      };
+    }
+
+    const courseName = explicitCourseName || docCourseName || '';
+    const teacher = docTeacher || explicitTeacher || '';
 
     // 2. Ищем таблицу «Назначенные задания» (наиболее вложенную таблицу, содержащую заголовки заданий)
     const hasTaskHeaders = (t) => {

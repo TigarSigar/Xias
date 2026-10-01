@@ -167,6 +167,25 @@ window.XIASUI = {
         cacheUpdated = true;
       }
     }
+
+    // 2.3 Деконтаминация: очистка других предметов от ошибочно попавших в них заданий по тестированию ПО
+    const qaKeywords = ['чек лист', 'чек-лист', 'тест кейс', 'тест-кейс', 'багрепорт', 'charles', 'devtools', 'postman', 'тестирование по', 'тестирования по'];
+    for (const [courseTitle, taskList] of Object.entries(cachedTasksMap)) {
+      const isQaCourse = courseTitle.toLowerCase().includes('тестирован');
+      if (!isQaCourse && Array.isArray(taskList)) {
+        const filtered = taskList.filter(t => {
+          const tTitle = (t.title || '').toLowerCase();
+          const tTeacher = (t.teacher || '').toLowerCase();
+          const isTestingTask = qaKeywords.some(kw => tTitle.includes(kw)) || tTeacher.includes('бурмин');
+          return !isTestingTask;
+        });
+        if (filtered.length !== taskList.length) {
+          cachedTasksMap[courseTitle] = filtered;
+          cacheUpdated = true;
+        }
+      }
+    }
+
     if (cacheUpdated) {
       chrome.storage.local.set({ xiasCachedAssignments: cachedTasksMap });
     }
@@ -416,9 +435,24 @@ window.XIASUI = {
       }
 
       try {
-        let fullUrl = (typeof window !== 'undefined' && window.location)
-          ? new URL(course.tasksUrl, window.location.href).href
-          : course.tasksUrl;
+        let fullUrl = '';
+        if (course.c_id) {
+          fullUrl = `https://xiais.kemsu.ru/proc/stud/course_st/tasks_st.htm?c_id=${encodeURIComponent(course.c_id)}`;
+        } else if (course.tasksUrl) {
+          fullUrl = (typeof window !== 'undefined' && window.location)
+            ? new URL(course.tasksUrl, window.location.href).href
+            : course.tasksUrl;
+        } else if (course.rawRow) {
+          const cIdInp = course.rawRow.querySelector('input[name="c_id"]');
+          if (cIdInp && cIdInp.value) {
+            course.c_id = cIdInp.value.trim();
+            fullUrl = `https://xiais.kemsu.ru/proc/stud/course_st/tasks_st.htm?c_id=${encodeURIComponent(course.c_id)}`;
+          }
+        }
+        if (!fullUrl) {
+          completedCount++;
+          continue;
+        }
         fullUrl = fullUrl.replace(/\/stud\/stud\//g, '/stud/');
 
         let res = null;
@@ -463,12 +497,14 @@ window.XIASUI = {
           if (typeof DOMParser !== 'undefined' && parser && typeof parser.parseTasksFromDocument === 'function') {
             const doc = new DOMParser().parseFromString(html, 'text/html');
             const parsed = parser.parseTasksFromDocument(doc, course.name, course.teacher);
-            if (parsed && Array.isArray(parsed.assignments)) {
+            if (parsed && !parsed.isMismatch && Array.isArray(parsed.assignments)) {
               const validAssignments = parsed.assignments.filter(t => this.isValidTask(t));
               if (validAssignments.length > 0 || !cachedTasksMap[course.name] || cachedTasksMap[course.name].length === 0) {
                 cachedTasksMap[course.name] = validAssignments;
                 course.assignments = validAssignments;
               }
+            } else if (parsed && parsed.isMismatch) {
+              console.warn(`[XIAS] Course mismatch during sync: expected "${course.name}", but received "${parsed.courseName}". Skipping.`);
             }
           }
         }
@@ -1017,7 +1053,7 @@ window.XIASUI = {
               const cDoc = new DOMParser().parseFromString(cHtml, 'text/html');
               if (window.XIASParser) {
                 const parsedCourse = window.XIASParser.parseTasksFromDocument(cDoc, course.name, course.teacher);
-                if (parsedCourse && Array.isArray(parsedCourse.assignments)) {
+                if (parsedCourse && !parsedCourse.isMismatch && Array.isArray(parsedCourse.assignments)) {
                   course.assignments = parsedCourse.assignments;
                   this.saveCourseAssignments(course.name, parsedCourse.assignments);
                   const matchingTask = (parsedCourse.assignments || []).find(t => t.title === task.title || t.uniqueId === task.uniqueId);
@@ -1312,17 +1348,23 @@ window.XIASUI = {
         const courseId = openBtn.dataset.courseId;
         const course = courses.find(c => c.id === courseId);
         if (course) {
+          const destUrl = course.c_id
+            ? `https://xiais.kemsu.ru/proc/stud/course_st/tasks_st.htm?c_id=${encodeURIComponent(course.c_id)}`
+            : course.tasksUrl;
+
           if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
             chrome.storage.local.set({
               xiasLastOpenedCourse: {
                 id: course.id,
                 name: course.name,
                 teacher: course.teacher,
-                tasksUrl: course.tasksUrl
+                tasksUrl: destUrl || course.tasksUrl
               }
             });
           }
-          if (course.actionElement) {
+          if (destUrl && !destUrl.startsWith('javascript:')) {
+            window.location.href = destUrl;
+          } else if (course.actionElement) {
             course.actionElement.click();
           } else if (course.rawRow) {
             const link = course.rawRow.querySelector('a, img, input');
