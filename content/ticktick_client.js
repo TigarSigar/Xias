@@ -45,8 +45,10 @@ window.XIASTickTick = {
   async getConfig() {
     return new Promise((resolve) => {
       chrome.storage.local.get(['tickTickToken', 'tickTickProjectName'], (res) => {
+        const rawToken = String(res.tickTickToken || '').trim();
+        const cleanToken = rawToken.replace(/^["'`]|["'`]$/g, '').trim();
         resolve({
-          token: res.tickTickToken || '',
+          token: cleanToken,
           projectName: res.tickTickProjectName || 'КемГУ / Учёба'
         });
       });

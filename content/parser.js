@@ -20,15 +20,21 @@ window.XIASParser = {
     return 'UNKNOWN';
   },
 
+  // Безопасное получение текстового содержимого (работает и в DOM, и в detached DOMParser)
+  getText(el) {
+    if (!el) return '';
+    return (el.textContent || el.innerText || '').trim();
+  },
+
   // Проверка сессии на странице xiais
   isSessionExpired() {
-    const text = document.body ? document.body.innerText : '';
+    const text = document.body ? (document.body.textContent || document.body.innerText || '') : '';
     return text.includes('Нет доступа') || text.includes('NullPointerException') || text.includes('Сессия устарела');
   },
 
   // Извлечение информации о студенте (ФИО, Факультет, Специальность)
   parseStudentInfo() {
-    const text = document.body ? document.body.innerText : '';
+    const text = document.body ? (document.body.textContent || document.body.innerText || '') : '';
     const info = {
       name: 'Студент',
       faculty: 'Институт цифры',
@@ -60,7 +66,7 @@ window.XIASParser = {
   parseCoursesFromIndex() {
     const tables = Array.from(document.querySelectorAll('table'));
     const candidateTables = tables.filter(t => {
-      const txt = t.innerText || '';
+      const txt = this.getText(t);
       return txt.includes('Дисциплина') && (txt.includes('Отчетность') || txt.includes('Преподаватель'));
     });
 
@@ -82,15 +88,15 @@ window.XIASParser = {
 
       const titleCell = cells[1];
       if (!titleCell) return;
-      const courseName = titleCell.innerText.trim();
+      const courseName = this.getText(titleCell);
       if (!courseName || courseName.toLowerCase().includes('дисциплина')) return;
 
-      const reportingType = cells[2] ? cells[2].innerText.trim() : '';
-      const year = cells[3] ? cells[3].innerText.trim() : '';
-      const hours = cells[4] ? cells[4].innerText.trim() : '';
-      const period = cells[5] ? cells[5].innerText.trim() : '';
-      const teacher = cells[6] ? cells[6].innerText.trim() : '';
-      const scoreRaw = cells[7] ? cells[7].innerText.trim() : '0';
+      const reportingType = cells[2] ? this.getText(cells[2]) : '';
+      const year = cells[3] ? this.getText(cells[3]) : '';
+      const hours = cells[4] ? this.getText(cells[4]) : '';
+      const period = cells[5] ? this.getText(cells[5]) : '';
+      const teacher = cells[6] ? this.getText(cells[6]) : '';
+      const scoreRaw = cells[7] ? this.getText(cells[7]) : '0';
       const score = parseFloat(scoreRaw.replace(',', '.')) || 0;
 
       // Ищем элемент действия (иконка лупы, ссылка или кнопка отправки)
@@ -193,23 +199,75 @@ window.XIASParser = {
     // 1. Извлекаем название текущей дисциплины и преподавателя
     let courseName = explicitCourseName || '';
     let teacher = explicitTeacher || '';
-    const bodyText = doc.body ? (doc.body.innerText || doc.body.textContent || '') : '';
-    if (!courseName) {
-      const courseMatch = bodyText.match(/Дисциплина:\s*([^\n\r\t<]+)/i);
-      if (courseMatch) {
-        courseName = courseMatch[1].replace(/\[.*\]/g, '').trim();
+    const bodyText = doc.body ? (doc.body.textContent || doc.body.innerText || '') : '';
+
+    if (!courseName && doc) {
+      // 1.1 Поиск в заголовках и текстовых элементах страницы
+      const elements = Array.from(doc.querySelectorAll('h1, h2, h3, h4, th, td, b, span, p'));
+      for (const el of elements) {
+        const t = this.getText(el);
+        const m = t.match(/^Дисциплина\s*[:\-–—]?\s*(.+)$/i);
+        if (m && m[1] && !m[1].startsWith('->') && !m[1].toLowerCase().includes('задания') && m[1].length < 100) {
+          courseName = m[1].replace(/\[.*\]/g, '').trim();
+          break;
+        }
+      }
+      // 1.2 Если в таблице пара <td>Дисциплина:</td><td>Название</td>
+      if (!courseName) {
+        const labelCell = elements.find(el => {
+          const t = this.getText(el).toLowerCase();
+          return t === 'дисциплина:' || t === 'дисциплина';
+        });
+        if (labelCell && labelCell.nextElementSibling) {
+          courseName = this.getText(labelCell.nextElementSibling).replace(/\[.*\]/g, '').trim();
+        }
+      }
+      // 1.3 Fallback: regex по тексту страницы
+      if (!courseName) {
+        const courseMatch = bodyText.match(/Дисциплина\s*[:\-–—]\s*([^\n\r\t<]+)/i);
+        if (courseMatch && !courseMatch[1].includes('->')) {
+          courseName = courseMatch[1].replace(/\[.*\]/g, '').trim();
+        }
       }
     }
-    if (!teacher) {
-      const teacherMatch = bodyText.match(/Преподаватель:\s*([^\n\r\t<]+)/i);
-      if (teacherMatch) {
-        teacher = teacherMatch[1].replace(/\[.*\]/g, '').trim();
+
+    if (!teacher && doc) {
+      const elements = Array.from(doc.querySelectorAll('th, td, b, span, p'));
+      for (const el of elements) {
+        const t = this.getText(el);
+        const m = t.match(/^Преподаватель\s*[:\-–—]\s*(\S.+)$/i);
+        if (m && m[1] && m[1].length < 80) {
+          teacher = m[1].replace(/\[.*\]/g, '').trim();
+          break;
+        }
+        if (/^Преподаватель\s*[:\-–—]?$/i.test(t)) {
+          if (el.nextSibling && (el.nextSibling.textContent || el.nextSibling.nodeValue)) {
+            const nextTxt = (el.nextSibling.textContent || el.nextSibling.nodeValue || '').trim();
+            if (nextTxt && nextTxt.length < 80) {
+              teacher = nextTxt.replace(/\[.*\]/g, '').trim();
+              break;
+            }
+          }
+          if (el.nextElementSibling) {
+            const nextTxt = this.getText(el.nextElementSibling);
+            if (nextTxt && nextTxt.length < 80) {
+              teacher = nextTxt.replace(/\[.*\]/g, '').trim();
+              break;
+            }
+          }
+        }
+      }
+      if (!teacher) {
+        const teacherMatch = bodyText.match(/Преподаватель\s*[:\-–—]\s*([^\n\r\t<]+)/i);
+        if (teacherMatch) {
+          teacher = teacherMatch[1].replace(/\[.*\]/g, '').trim();
+        }
       }
     }
 
     // 2. Ищем таблицу «Назначенные задания» (наиболее вложенную таблицу, содержащую заголовки заданий)
     const hasTaskHeaders = (t) => {
-      const txt = (t.innerText || t.textContent || '').toLowerCase();
+      const txt = this.getText(t).toLowerCase();
       const hasTitle = txt.includes('наименование задания') || txt.includes('назначенные задания') || txt.includes('название');
       const hasDateOrScore = txt.includes('контрольная дата') || txt.includes('максимальный балл') || txt.includes('состояние');
       return hasTitle && hasDateOrScore;
@@ -231,12 +289,12 @@ window.XIASParser = {
 
     if (!tasksTable) {
       const altCandidates = tables.filter(t => {
-        const txt = (t.innerText || t.textContent || '').toLowerCase();
+        const txt = this.getText(t).toLowerCase();
         return txt.includes('контрольная дата') && txt.includes('состояние');
       });
       tasksTable = altCandidates.find(t => {
         const childTables = Array.from(t.querySelectorAll('table'));
-        return !childTables.some(ct => (ct.innerText || ct.textContent || '').toLowerCase().includes('контрольная дата'));
+        return !childTables.some(ct => this.getText(ct).toLowerCase().includes('контрольная дата'));
       }) || altCandidates[altCandidates.length - 1];
     }
 
@@ -267,7 +325,7 @@ window.XIASParser = {
       const cells = Array.from(row.querySelectorAll('td'));
       if (cells.length === 0) return;
 
-      const rowText = (row.innerText || '').trim();
+      const rowText = this.getText(row);
       const rowLower = rowText.toLowerCase();
 
       // Игнорируем заголовки и служебные фильтры
@@ -283,7 +341,7 @@ window.XIASParser = {
 
       if (cells.length < 4) return;
 
-      let title = cells[0] ? (cells[0].innerText || '').trim() : '';
+      let title = this.getText(cells[0]);
       if (!title || title.length > 150) return;
 
       // Исключаем попадание мусорных заголовков
@@ -291,12 +349,12 @@ window.XIASParser = {
       if (garbageWords.some(w => titleLower.includes(w))) return;
       if ((title.match(/\n/g) || []).length > 1) return;
 
-      const needSubmission = cells[1] ? (cells[1].innerText || '').trim().toLowerCase() === 'да' : false;
-      const comment = cells[2] ? (cells[2].innerText || '').trim() : '';
-      const deadlineRaw = cells[3] ? (cells[3].innerText || '').trim() : ''; // например "26-09-2026 23:59:59"
-      const maxScore = cells[4] ? (cells[4].innerText || '').trim() : '';
-      const resultScore = cells[5] ? (cells[5].innerText || '').trim() : '';
-      const stateRaw = cells[6] ? (cells[6].innerText || '').trim() : '';
+      const needSubmission = this.getText(cells[1]).toLowerCase() === 'да';
+      const comment = this.getText(cells[2]);
+      const deadlineRaw = this.getText(cells[3]); // например "26-09-2026 23:59:59"
+      const maxScore = this.getText(cells[4]);
+      const resultScore = this.getText(cells[5]);
+      const stateRaw = this.getText(cells[6]);
 
       // Нормализуем статус:
       // 'DONE' (Оценено / Зачтено), 'REVIEW' (На проверке), 'TODO' (Сделать), 'REWORK' (Доработка)
@@ -326,7 +384,7 @@ window.XIASParser = {
       const links = Array.from(row.querySelectorAll('a'));
       links.forEach(a => {
         let href = a.getAttribute('href') || a.href || '';
-        const txt = (a.innerText || '').trim();
+        const txt = this.getText(a);
         if (href && (href.includes('file') || href.includes('download') || href.includes('load') || href.includes('.pdf') || href.includes('.doc') || href.includes('.zip') || href.includes('metod') || href.includes('method') || txt.includes('Файл') || txt.includes('Методич') || txt.includes('.'))) {
           try {
             href = new URL(href, 'https://xiais.kemsu.ru/proc/stud/course_st/').href;

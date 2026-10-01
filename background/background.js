@@ -308,13 +308,20 @@ if (chrome.runtime?.onMessage) {
   });
 }
 
+// Очистка токена TickTick от кавычек и пробелов
+function sanitizeTickTickToken(token) {
+  if (!token) return '';
+  return String(token).trim().replace(/^["'`]|["'`]$/g, '').trim();
+}
+
 // Проверка токена TickTick
 async function testTickTickToken(token) {
-  if (!token) throw new Error('Токен TickTick не указан');
+  const cleanToken = sanitizeTickTickToken(token);
+  if (!cleanToken) throw new Error('Токен TickTick не указан');
 
   const res = await fetch(`${TICKTICK_API_BASE}/project`, {
     headers: {
-      'Authorization': `Bearer ${token.trim()}`,
+      'Authorization': `Bearer ${cleanToken}`,
       'Content-Type': 'application/json'
     }
   });
@@ -330,8 +337,9 @@ async function testTickTickToken(token) {
 
 // Получение или создание проекта в TickTick
 async function getOrCreateProjectId(token, projectName = 'КемГУ / Учёба') {
+  const cleanToken = sanitizeTickTickToken(token);
   const headers = {
-    'Authorization': `Bearer ${token.trim()}`,
+    'Authorization': `Bearer ${cleanToken}`,
     'Content-Type': 'application/json'
   };
 
@@ -369,11 +377,12 @@ async function getOrCreateProjectId(token, projectName = 'КемГУ / Учёб�
 
 // Создание одной задачи
 async function createTickTickTask(taskData, token, projectName) {
-  if (!token) throw new Error('Токен TickTick не настроен');
+  const cleanToken = sanitizeTickTickToken(token);
+  if (!cleanToken) throw new Error('Токен TickTick не настроен');
 
   let projectId = null;
   try {
-    projectId = await getOrCreateProjectId(token, projectName);
+    projectId = await getOrCreateProjectId(cleanToken, projectName);
   } catch (e) {
     console.warn('[TickTick] Project resolve error:', e);
   }
@@ -398,7 +407,7 @@ async function createTickTickTask(taskData, token, projectName) {
   const res = await fetch(`${TICKTICK_API_BASE}/task`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token.trim()}`,
+      'Authorization': `Bearer ${cleanToken}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(payload)
@@ -414,10 +423,11 @@ async function createTickTickTask(taskData, token, projectName) {
 
 // Пакетная синхронизация
 async function batchSyncTickTickTasks(tasks, token, projectName) {
+  const cleanToken = sanitizeTickTickToken(token);
   const results = [];
   for (const t of tasks) {
     try {
-      const res = await createTickTickTask(t, token, projectName);
+      const res = await createTickTickTask(t, cleanToken, projectName);
       results.push({ id: t.uniqueId, success: true, tickTaskId: res.id, projectId: res.projectId });
     } catch (err) {
       results.push({ id: t.uniqueId, success: false, error: err.message });
@@ -428,13 +438,14 @@ async function batchSyncTickTickTasks(tasks, token, projectName) {
 
 // Удаление задачи из TickTick
 async function deleteTickTickTask(taskId, projectId, token, projectName = 'КемГУ / Учёба') {
-  if (!token) throw new Error('Токен TickTick не настроен');
+  const cleanToken = sanitizeTickTickToken(token);
+  if (!cleanToken) throw new Error('Токен TickTick не настроен');
   if (!taskId) throw new Error('ID задачи TickTick не передан');
 
   let resolvedProjectId = projectId;
   if (!resolvedProjectId) {
     try {
-      resolvedProjectId = await getOrCreateProjectId(token, projectName);
+      resolvedProjectId = await getOrCreateProjectId(cleanToken, projectName);
     } catch (e) {
       console.warn('[TickTick] Could not resolve project for deletion:', e);
     }
@@ -447,7 +458,7 @@ async function deleteTickTickTask(taskId, projectId, token, projectName = 'Ке�
   const res = await fetch(`${TICKTICK_API_BASE}/project/${resolvedProjectId}/task/${taskId}`, {
     method: 'DELETE',
     headers: {
-      'Authorization': `Bearer ${token.trim()}`,
+      'Authorization': `Bearer ${cleanToken}`,
       'Content-Type': 'application/json'
     }
   });
@@ -462,11 +473,12 @@ async function deleteTickTickTask(taskId, projectId, token, projectName = 'Ке�
 
 // Проверка и синхронизация актуального состояния задач в TickTick (удаление устаревших и обработка выполненных)
 async function reconcileTickTickTasks(token, projectName = 'КемГУ / Учёба') {
-  if (!token) throw new Error('Токен TickTick не настроен');
+  const cleanToken = sanitizeTickTickToken(token);
+  if (!cleanToken) throw new Error('Токен TickTick не настроен');
 
   let projectId = null;
   try {
-    projectId = await getOrCreateProjectId(token, projectName);
+    projectId = await getOrCreateProjectId(cleanToken, projectName);
   } catch (e) {
     console.warn('[TickTick] Could not resolve project for reconciliation:', e);
     const storage = await chrome.storage.local.get(['xiasSyncedTasks']);
@@ -481,7 +493,7 @@ async function reconcileTickTickTasks(token, projectName = 'КемГУ / Учё�
   // Получаем актуальный список задач в проекте
   const res = await fetch(`${TICKTICK_API_BASE}/project/${projectId}/data`, {
     headers: {
-      'Authorization': `Bearer ${token.trim()}`,
+      'Authorization': `Bearer ${cleanToken}`,
       'Content-Type': 'application/json'
     }
   });

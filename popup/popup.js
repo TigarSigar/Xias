@@ -38,8 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Автосохранение
   function saveSettings() {
+    const cleanToken = tokenInput.value.trim().replace(/^["'`]|["'`]$/g, '').trim();
     chrome.storage.local.set({
-      tickTickToken: tokenInput.value.trim(),
+      tickTickToken: cleanToken,
       tickTickProjectName: projectInput.value.trim() || 'КемГУ / Учёба',
       autoLoginEnabled: autologinCheck.checked,
       eiosLogin: loginInput.value.trim(),
@@ -64,9 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Проверка токена TickTick
-  testBtn.addEventListener('click', async () => {
-    const token = tokenInput.value.trim();
-    if (!token) {
+  testBtn.addEventListener('click', () => {
+    const cleanToken = tokenInput.value.trim().replace(/^["'`]|["'`]$/g, '').trim();
+    if (!cleanToken) {
       testStatus.textContent = 'Введите токен!';
       testStatus.className = 'status-msg error';
       return;
@@ -75,45 +76,27 @@ document.addEventListener('DOMContentLoaded', () => {
     testStatus.textContent = 'Проверка...';
     testStatus.className = 'status-msg';
 
-    try {
-      const res = await fetch('https://api.ticktick.com/open/v1/project', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+    // Проверяем через Background Service Worker (избегает ограничений CORS в popup)
+    chrome.runtime.sendMessage({
+      action: 'TEST_TICKTICK',
+      token: cleanToken
+    }, (bgRes) => {
+      if (chrome.runtime.lastError) {
+        testStatus.textContent = 'Ошибка сервиса: ' + chrome.runtime.lastError.message;
+        testStatus.className = 'status-msg error';
+        return;
+      }
 
-      if (res.ok) {
+      if (bgRes && bgRes.success) {
         testStatus.textContent = 'Успешно подключено!';
         testStatus.className = 'status-msg success';
+        tokenInput.value = cleanToken;
         saveSettings();
       } else {
-        const text = await res.text();
-        testStatus.textContent = `Ошибка (${res.status}): неверный токен`;
+        testStatus.textContent = bgRes?.error || 'Неверный токен';
         testStatus.className = 'status-msg error';
       }
-    } catch (err) {
-      // Fallback через background service worker
-      chrome.runtime.sendMessage({
-        action: 'TEST_TICKTICK',
-        token
-      }, (bgRes) => {
-        if (chrome.runtime.lastError) {
-          testStatus.textContent = 'Ошибка сети: ' + err.message;
-          testStatus.className = 'status-msg error';
-          return;
-        }
-
-        if (bgRes && bgRes.success) {
-          testStatus.textContent = 'Успешно подключено!';
-          testStatus.className = 'status-msg success';
-          saveSettings();
-        } else {
-          testStatus.textContent = bgRes?.error || 'Неверный токен';
-          testStatus.className = 'status-msg error';
-        }
-      });
-    }
+    });
   });
 
   // Открыть ЭИОС / ИнфоОУПро

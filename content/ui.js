@@ -158,6 +158,25 @@ window.XIASUI = {
       });
     });
 
+    // Сохраняем список курсов для использования на страницах заданий
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({
+        xiasCachedCourses: courses.map(c => ({
+          id: c.id,
+          name: c.name,
+          tasksUrl: c.tasksUrl,
+          teacher: c.teacher
+        }))
+      });
+    }
+
+    // Если нет несданных заданий или задания ещё не подгрузились, открываем «Все предметы»
+    if (todoCount === 0) {
+      this.activeTab = 'ALL';
+    } else {
+      this.activeTab = 'TODO';
+    }
+
     // Рендер HTML дашборда
     root.innerHTML = `
       <!-- Шапка -->
@@ -378,8 +397,10 @@ window.XIASUI = {
             const parsed = parser.parseTasksFromDocument(doc, course.name, course.teacher);
             if (parsed && Array.isArray(parsed.assignments)) {
               const validAssignments = parsed.assignments.filter(t => this.isValidTask(t));
-              cachedTasksMap[course.name] = validAssignments;
-              course.assignments = validAssignments;
+              if (validAssignments.length > 0 || !cachedTasksMap[course.name] || cachedTasksMap[course.name].length === 0) {
+                cachedTasksMap[course.name] = validAssignments;
+                course.assignments = validAssignments;
+              }
             }
           }
         }
@@ -442,6 +463,25 @@ window.XIASUI = {
     });
 
     if (filteredCourses.length === 0) {
+      if (this.activeTab === 'TODO' && !query) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background:#fff; border-radius:12px; border:1px solid #e2e8f0;">
+            <div style="margin-bottom:8px; color:#10b981; display:flex; justify-content:center;">${svgIcon('check', 32)}</div>
+            <h3 style="margin:0 0 6px;">Все задания сданы или ещё не синхронизированы</h3>
+            <p style="color:#64748b; margin:0 0 16px;">Вкладка «Надо сделать» пуста. Откройте нужный предмет в старом виде для сбора заданий или переключитесь на «Все предметы».</p>
+            <button class="xias-btn xias-btn-primary" id="xias-empty-switch-all" style="margin:0 auto;">Показать все предметы</button>
+          </div>
+        `;
+        const switchBtn = container.querySelector('#xias-empty-switch-all');
+        if (switchBtn) {
+          switchBtn.addEventListener('click', () => {
+            const allBtn = document.querySelector('.xias-tab-btn[data-tab="ALL"]');
+            if (allBtn) allBtn.click();
+          });
+        }
+        return;
+      }
+
       container.innerHTML = `
         <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background:#fff; border-radius:12px; border:1px solid #e2e8f0;">
           <div style="margin-bottom:8px; color:#94a3b8; display:flex; justify-content:center;">${svgIcon('search', 32)}</div>
@@ -1382,12 +1422,29 @@ window.XIASUI = {
   },
 
   // Улучшение страницы заданий xiais.kemsu.ru/proc/stud/course_st/tasks_st.htm
-  enhanceTasksPage(parsedData) {
+  async enhanceTasksPage(parsedData) {
     if (document.getElementById('xias-tasks-bar')) return;
 
+    // Если courseName не определился из DOM, пробуем восстановить из сохраненного списка курсов
+    if (!parsedData.courseName && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      try {
+        const { xiasCachedCourses } = await chrome.storage.local.get(['xiasCachedCourses']);
+        if (Array.isArray(xiasCachedCourses)) {
+          const curHref = (typeof window !== 'undefined' && window.location) ? window.location.href : '';
+          const matched = xiasCachedCourses.find(c => c.tasksUrl && (curHref.includes(c.tasksUrl) || (c.tasksUrl.includes('?') && curHref.includes(c.tasksUrl.split('?')[1]))));
+          if (matched) {
+            parsedData.courseName = matched.name;
+            if (!parsedData.teacher) parsedData.teacher = matched.teacher;
+          }
+        }
+      } catch (e) {}
+    }
+
+    const effectiveCourseName = parsedData.courseName || 'Текущая дисциплина';
+
     // Сохраняем спарсенные задания в кэш курса
-    if (parsedData.courseName && parsedData.assignments.length > 0) {
-      this.saveCourseAssignments(parsedData.courseName, parsedData.assignments);
+    if (parsedData.assignments && parsedData.assignments.length > 0) {
+      this.saveCourseAssignments(effectiveCourseName, parsedData.assignments);
     }
 
     // Создаем стильную плавающую верхнюю панель
@@ -1412,8 +1469,10 @@ window.XIASUI = {
         <a href="https://xiais.kemsu.ru/proc/stud/index.shtm" style="background:#4f46e5; color:#fff; text-decoration:none; padding:6px 12px; border-radius:6px; font-size:13px; font-weight:600;">
           ← В XIAS Дашборд
         </a>
-        <span style="font-weight:700; font-size:15px;">${escapeHtml(parsedData.courseName || 'Задания курса')}</span>
-        <span style="font-size:12px; opacity:0.8;">(Всего заданий: ${parsedData.assignments.length})</span>
+        <span style="font-weight:700; font-size:15px;">${escapeHtml(effectiveCourseName)}</span>
+        <span style="font-size:12px; background:#10b981; color:#fff; padding:2px 8px; border-radius:12px; font-weight:600;">
+          Синхронизировано: ${parsedData.assignments.length}
+        </span>
       </div>
 
       <div style="display:flex; align-items:center; gap:10px;">
