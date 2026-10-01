@@ -26,6 +26,19 @@ window.XIASParser = {
     return (el.textContent || el.innerText || '').trim();
   },
 
+  // Проверка валидности имени сущности (курс, преподаватель) — исключает двоеточия, дефисы и мусор
+  isValidEntityName(str) {
+    if (!str || typeof str !== 'string') return false;
+    const clean = str.replace(/[:\-–—\s\.\,\[\]\(\)]/g, '').trim();
+    return clean.length >= 2;
+  },
+
+  // Очистка названия сущности от скобок [семестр 1] и ведущих/замыкающих знаков препинания
+  cleanEntityName(str) {
+    if (!str || typeof str !== 'string') return '';
+    return str.replace(/\[.*\]/g, '').replace(/^[:\-–—\s]+/, '').replace(/[:\-–—\s]+$/, '').trim();
+  },
+
   // Проверка сессии на странице xiais
   isSessionExpired() {
     const text = document.body ? (document.body.textContent || document.body.innerText || '') : '';
@@ -131,16 +144,26 @@ window.XIASParser = {
       }
 
       // 2. Поиск формы в строке
-      if (!rawTasksUrl) {
-        const form = row.querySelector('form');
-        if (form) {
-          const act = form.getAttribute('action') || '';
-          const params = Array.from(form.querySelectorAll('input'))
-            .filter(i => i.name && i.value)
-            .map(i => `${encodeURIComponent(i.name)}=${encodeURIComponent(i.value)}`)
-            .join('&');
-          if (act) rawTasksUrl = act + (params ? (act.includes('?') ? '&' : '?') + params : '');
-        }
+      let formAction = '';
+      let formMethod = 'GET';
+      let formInputs = null;
+      const form = row.querySelector('form');
+      if (form) {
+        formAction = form.getAttribute('action') || '';
+        formMethod = (form.getAttribute('method') || 'GET').toUpperCase();
+        formInputs = {};
+        form.querySelectorAll('input').forEach(i => {
+          if (i.name) formInputs[i.name] = i.value || '';
+        });
+      }
+
+      if (!rawTasksUrl && form) {
+        const act = formAction;
+        const params = Array.from(form.querySelectorAll('input'))
+          .filter(i => i.name && i.value)
+          .map(i => `${encodeURIComponent(i.name)}=${encodeURIComponent(i.value)}`)
+          .join('&');
+        if (act) rawTasksUrl = act + (params ? (act.includes('?') ? '&' : '?') + params : '');
       }
 
       // 3. Поиск onclick обработчиков
@@ -161,7 +184,12 @@ window.XIASParser = {
       let tasksUrl = '';
       if (rawTasksUrl && !rawTasksUrl.startsWith('javascript:')) {
         try {
-          tasksUrl = new URL(rawTasksUrl, 'https://xiais.kemsu.ru/proc/stud/').href;
+          const URLClass = (typeof URL !== 'undefined') ? URL : (typeof window !== 'undefined' ? window.URL : globalThis.URL);
+          const base = (rawTasksUrl.startsWith('stud/') || rawTasksUrl.startsWith('/stud/'))
+            ? 'https://xiais.kemsu.ru/proc/'
+            : 'https://xiais.kemsu.ru/proc/stud/';
+          tasksUrl = new URLClass(rawTasksUrl, base).href;
+          tasksUrl = tasksUrl.replace(/\/stud\/stud\//g, '/stud/');
         } catch (e) {
           tasksUrl = rawTasksUrl;
         }
@@ -181,6 +209,9 @@ window.XIASParser = {
         scoreRaw,
         actionElement: actionEl,
         tasksUrl,
+        formAction,
+        formMethod,
+        formInputs,
         rawRow: row
       });
     });
@@ -200,67 +231,98 @@ window.XIASParser = {
     let courseName = explicitCourseName || '';
     let teacher = explicitTeacher || '';
     const bodyText = doc.body ? (doc.body.textContent || doc.body.innerText || '') : '';
+    const isValid = (s) => this.isValidEntityName(s);
+    const clean = (s) => this.cleanEntityName(s);
 
-    if (!courseName && doc) {
+    if (!isValid(courseName) && doc) {
+      courseName = '';
+
       // 1.1 Поиск в заголовках и текстовых элементах страницы
       const elements = Array.from(doc.querySelectorAll('h1, h2, h3, h4, th, td, b, span, p'));
       for (const el of elements) {
         const t = this.getText(el);
         const m = t.match(/^Дисциплина\s*[:\-–—]?\s*(.+)$/i);
-        if (m && m[1] && !m[1].startsWith('->') && !m[1].toLowerCase().includes('задания') && m[1].length < 100) {
-          courseName = m[1].replace(/\[.*\]/g, '').trim();
-          break;
+        if (m && m[1] && !m[1].startsWith('->') && !m[1].toLowerCase().includes('задания') && m[1].length < 120) {
+          const cand = clean(m[1]);
+          if (isValid(cand)) {
+            courseName = cand;
+            break;
+          }
         }
       }
-      // 1.2 Если в таблице пара <td>Дисциплина:</td><td>Название</td>
+
+      // 1.2 Если в таблице пара или тройка ячеек <td>Дисциплина</td> <td>:</td> <td>Название</td>
       if (!courseName) {
         const labelCell = elements.find(el => {
-          const t = this.getText(el).toLowerCase();
+          const t = this.getText(el).toLowerCase().trim();
           return t === 'дисциплина:' || t === 'дисциплина';
         });
-        if (labelCell && labelCell.nextElementSibling) {
-          courseName = this.getText(labelCell.nextElementSibling).replace(/\[.*\]/g, '').trim();
+        if (labelCell) {
+          let sib = labelCell.nextElementSibling;
+          while (sib) {
+            const cand = clean(this.getText(sib));
+            if (isValid(cand) && cand.length < 120 && !cand.toLowerCase().includes('задания')) {
+              courseName = cand;
+              break;
+            }
+            sib = sib.nextElementSibling;
+          }
         }
       }
+
       // 1.3 Fallback: regex по тексту страницы
       if (!courseName) {
-        const courseMatch = bodyText.match(/Дисциплина\s*[:\-–—]\s*([^\n\r\t<]+)/i);
+        const courseMatch = bodyText.match(/Дисциплина\s*[:\-–—]?\s*([^\n\r\t<\[\]]+)/i);
         if (courseMatch && !courseMatch[1].includes('->')) {
-          courseName = courseMatch[1].replace(/\[.*\]/g, '').trim();
+          const cand = clean(courseMatch[1]);
+          if (isValid(cand)) {
+            courseName = cand;
+          }
         }
       }
     }
 
-    if (!teacher && doc) {
+    if (!isValid(teacher) && doc) {
+      teacher = '';
       const elements = Array.from(doc.querySelectorAll('th, td, b, span, p'));
       for (const el of elements) {
         const t = this.getText(el);
-        const m = t.match(/^Преподаватель\s*[:\-–—]\s*(\S.+)$/i);
+        const m = t.match(/^Преподаватель\s*[:\-–—]?\s*(\S.+)$/i);
         if (m && m[1] && m[1].length < 80) {
-          teacher = m[1].replace(/\[.*\]/g, '').trim();
-          break;
+          const cand = clean(m[1]);
+          if (isValid(cand)) {
+            teacher = cand;
+            break;
+          }
         }
-        if (/^Преподаватель\s*[:\-–—]?$/i.test(t)) {
-          if (el.nextSibling && (el.nextSibling.textContent || el.nextSibling.nodeValue)) {
-            const nextTxt = (el.nextSibling.textContent || el.nextSibling.nodeValue || '').trim();
-            if (nextTxt && nextTxt.length < 80) {
-              teacher = nextTxt.replace(/\[.*\]/g, '').trim();
+        if (/^Преподаватель\s*[:\-–—]?$/i.test(t.trim())) {
+          let sib = el.nextElementSibling;
+          while (sib) {
+            const cand = clean(this.getText(sib));
+            if (isValid(cand) && cand.length < 80) {
+              teacher = cand;
               break;
             }
+            sib = sib.nextElementSibling;
           }
-          if (el.nextElementSibling) {
-            const nextTxt = this.getText(el.nextElementSibling);
-            if (nextTxt && nextTxt.length < 80) {
-              teacher = nextTxt.replace(/\[.*\]/g, '').trim();
+          if (teacher) break;
+
+          if (el.nextSibling && (el.nextSibling.textContent || el.nextSibling.nodeValue)) {
+            const nextTxt = clean(el.nextSibling.textContent || el.nextSibling.nodeValue || '');
+            if (isValid(nextTxt) && nextTxt.length < 80) {
+              teacher = nextTxt;
               break;
             }
           }
         }
       }
       if (!teacher) {
-        const teacherMatch = bodyText.match(/Преподаватель\s*[:\-–—]\s*([^\n\r\t<]+)/i);
+        const teacherMatch = bodyText.match(/Преподаватель\s*[:\-–—]?\s*([^\n\r\t<\[\]]+)/i);
         if (teacherMatch) {
-          teacher = teacherMatch[1].replace(/\[.*\]/g, '').trim();
+          const cand = clean(teacherMatch[1]);
+          if (isValid(cand)) {
+            teacher = cand;
+          }
         }
       }
     }

@@ -24,7 +24,8 @@ function loadParser(html = '', url = 'https://xiais.kemsu.ru/proc/stud/index.sht
     parseFloat,
     Array,
     String,
-    RegExp
+    RegExp,
+    URL: globalThis.URL
   };
 
   vm.createContext(context);
@@ -250,5 +251,81 @@ test('XIASParser Unit and Opaque-Box DOM Parsing Suite', async (t) => {
     assert.equal(result.assignments[0].title, 'Лабораторная работа 1');
     assert.equal(result.assignments[1].title, 'Лабораторная работа 2');
     assert.equal(result.assignments[0].category, 'Лабораторные работы 1', 'Subsequent tasks should inherit the category name');
+  });
+
+  await t.test('Course and Teacher Extraction with Separated Colon Cells (Anti-":"-bug)', () => {
+    const htmlWithColonCells = `
+      <table border="0">
+        <tr>
+          <td>Дисциплина</td>
+          <td>:</td>
+          <td>Тестирование программного обеспечения [семестр 1]</td>
+        </tr>
+        <tr>
+          <td>Преподаватель</td>
+          <td>:</td>
+          <td>Кречетов Иван Анатольевич</td>
+        </tr>
+      </table>
+      <table border="1">
+        <tr>
+          <th>Наименование задания</th>
+          <th>Контрольная дата</th>
+          <th>Состояние</th>
+          <th>Действия</th>
+        </tr>
+        <tr>
+          <td>Лабораторная работа №1. Интеллект-карты</td>
+          <td>01.10.2026</td>
+          <td>Не сдано</td>
+          <td><a href="send.htm"><img src="l.gif"></a></td>
+        </tr>
+      </table>
+    `;
+    const { parser, document } = loadParser(htmlWithColonCells, 'https://xiais.kemsu.ru/proc/stud/course_st/tasks_st.htm');
+    const result = parser.parseTasksPage(document);
+
+    assert.equal(result.courseName, 'Тестирование программного обеспечения', 'Course name must skip colon cell and match real discipline name');
+    assert.equal(result.teacher, 'Кречетов Иван Анатольевич', 'Teacher name must skip colon cell and match full teacher name');
+    assert.equal(result.assignments.length, 1);
+    assert.equal(result.assignments[0].title, 'Лабораторная работа №1. Интеллект-карты');
+  });
+
+  await t.test('tasksUrl normalization handles stud/ prefix without double /stud/stud/', () => {
+    const htmlWithRelativeStud = `
+      <table border="1">
+        <tr>
+          <th>№</th>
+          <th>Дисциплина</th>
+          <th>Отчетность</th>
+          <th>Уч. год</th>
+          <th>Часы</th>
+          <th>Период</th>
+          <th>Преподаватель</th>
+          <th>Баллы</th>
+          <th>Действия</th>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td>Тестирование программного обеспечения</td>
+          <td>Экзамен</td>
+          <td>2026-2027</td>
+          <td>144</td>
+          <td>1 сем.</td>
+          <td>Кречетов И. А.</td>
+          <td>0</td>
+          <td><a href="stud/course_st/tasks_st.htm"><img src="l.gif"></a></td>
+        </tr>
+      </table>
+    `;
+    const { parser } = loadParser(htmlWithRelativeStud, 'https://xiais.kemsu.ru/proc/stud/index.shtm');
+    const courses = parser.parseCoursesFromIndex();
+
+    assert.equal(courses.length, 1);
+    assert.equal(
+      courses[0].tasksUrl,
+      'https://xiais.kemsu.ru/proc/stud/course_st/tasks_st.htm',
+      'tasksUrl must not contain double /stud/stud/'
+    );
   });
 });

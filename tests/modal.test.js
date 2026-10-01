@@ -443,5 +443,57 @@ test('XIAS UI Modal and Task Bubble Unit Tests', async (t) => {
 
     UI.closeTaskModal();
   });
+
+  await t.test('isValidCourseName validates course strings and rejects colon or punctuation', () => {
+    const { UI } = setupUiEnv();
+    assert.equal(UI.isValidCourseName('Тестирование программного обеспечения'), true);
+    assert.equal(UI.isValidCourseName('Базы данных'), true);
+    assert.equal(UI.isValidCourseName(':'), false);
+    assert.equal(UI.isValidCourseName(' - '), false);
+    assert.equal(UI.isValidCourseName(''), false);
+    assert.equal(UI.isValidCourseName(null), false);
+  });
+
+  await t.test('renderDashboard migrates orphan assignments cached under ":" to matching course', async () => {
+    const orphanTasks = [
+      {
+        uniqueId: 't_tpo_1',
+        title: 'Лабораторная работа №1. Интеллект-карты',
+        status: 'TODO',
+        statusLabel: 'Нужно сделать',
+        teacher: 'Кречетов Иван Анатольевич'
+      }
+    ];
+
+    const initialStorage = {
+      xiasCachedAssignments: {
+        ':': orphanTasks
+      }
+    };
+
+    const { UI, chrome, document } = setupUiEnv(initialStorage);
+    const courses = [
+      {
+        id: 'c_tpo',
+        name: 'Тестирование программного обеспечения',
+        teacher: 'Кречетов И. А.',
+        score: 0
+      }
+    ];
+
+    await UI.renderDashboard(courses, { name: 'Студент' });
+
+    // Verify course assignments were populated from migrated orphan tasks
+    const tpoCourse = courses.find(c => c.name === 'Тестирование программного обеспечения');
+    assert.ok(tpoCourse);
+    assert.equal(tpoCourse.assignments.length, 1);
+    assert.equal(tpoCourse.assignments[0].title, 'Лабораторная работа №1. Интеллект-карты');
+
+    // Verify storage was cleaned up (":" key deleted, migrated to full course name)
+    const stored = await chrome.storage.local.get(['xiasCachedAssignments']);
+    assert.equal(stored.xiasCachedAssignments[':'], undefined, 'Orphan key ":" must be deleted from storage');
+    assert.ok(stored.xiasCachedAssignments['Тестирование программного обеспечения']);
+    assert.equal(stored.xiasCachedAssignments['Тестирование программного обеспечения'].length, 1);
+  });
 });
 

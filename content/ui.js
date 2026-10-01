@@ -101,6 +101,12 @@ window.XIASUI = {
     return true;
   },
 
+  isValidCourseName(name) {
+    if (!name || typeof name !== 'string') return false;
+    const clean = name.replace(/[:\-–—\s\.\,\[\]\(\)]/g, '').trim();
+    return clean.length >= 2;
+  },
+
   async renderDashboard(courses, studentInfo) {
     this.allCourses = courses;
 
@@ -114,8 +120,45 @@ window.XIASUI = {
     const cachedTasksMap = await this.getCachedAssignments();
     const syncedTasksMap = await window.XIASTickTick.getSyncedMap();
 
-    // Санитизация кэшированных заданий (авто-очистка от мусорных данных)
+    // Санитизация и миграция кэшированных заданий
     let cacheUpdated = false;
+
+    // 2.1 Миграция ошибочно сохраненных заданий (например, ключ ":" из-за старого бага парсера)
+    for (const key of Object.keys(cachedTasksMap)) {
+      if (!this.isValidCourseName(key)) {
+        const orphanTasks = (cachedTasksMap[key] || []).filter(t => this.isValidTask(t));
+        delete cachedTasksMap[key];
+        cacheUpdated = true;
+
+        if (orphanTasks.length > 0) {
+          // Ищем курс, которому принадлежат эти задания
+          const sampleTeacher = orphanTasks[0].teacher;
+          let matched = null;
+          if (sampleTeacher) {
+            matched = courses.find(c => c.teacher && (c.teacher.includes(sampleTeacher) || sampleTeacher.includes(c.teacher)));
+          }
+          if (!matched) {
+            matched = courses.find(c => c.name && c.name.toLowerCase().includes('тестирование'));
+          }
+          if (!matched && courses.length === 1) {
+            matched = courses[0];
+          }
+          if (matched) {
+            const existing = cachedTasksMap[matched.name] || [];
+            const seen = new Set(existing.map(t => t.uniqueId));
+            orphanTasks.forEach(t => {
+              if (!seen.has(t.uniqueId)) {
+                existing.push(t);
+                seen.add(t.uniqueId);
+              }
+            });
+            cachedTasksMap[matched.name] = existing;
+          }
+        }
+      }
+    }
+
+    // 2.2 Санитизация кэшированных заданий (авто-очистка от мусорных данных)
     for (const key of Object.keys(cachedTasksMap)) {
       const original = cachedTasksMap[key] || [];
       const clean = original.filter(t => this.isValidTask(t));
@@ -373,12 +416,37 @@ window.XIASUI = {
       }
 
       try {
-        const fullUrl = (typeof window !== 'undefined' && window.location)
+        let fullUrl = (typeof window !== 'undefined' && window.location)
           ? new URL(course.tasksUrl, window.location.href).href
           : course.tasksUrl;
+        fullUrl = fullUrl.replace(/\/stud\/stud\//g, '/stud/');
 
-        const res = await fetch(fullUrl, { credentials: 'include' });
-        if (res.ok) {
+        let res = null;
+        // Если строка предмета в таблице содержала форму с POST
+        if (course.formMethod === 'POST' && course.formInputs && Object.keys(course.formInputs).length > 0) {
+          const bodyParams = new URLSearchParams();
+          for (const [k, v] of Object.entries(course.formInputs)) {
+            bodyParams.append(k, v);
+          }
+          const postUrl = (course.formAction
+            ? new URL(course.formAction, window.location.href).href
+            : fullUrl).replace(/\/stud\/stud\//g, '/stud/');
+          try {
+            res = await fetch(postUrl, {
+              method: 'POST',
+              body: bodyParams,
+              credentials: 'include'
+            });
+          } catch (pe) {
+            console.warn(`[XIAS] POST fetch failed for "${course.name}", trying GET:`, pe);
+          }
+        }
+
+        if (!res || !res.ok) {
+          res = await fetch(fullUrl, { credentials: 'include' });
+        }
+
+        if (res && res.ok) {
           let html = '';
           try {
             const buf = await res.arrayBuffer();
@@ -427,6 +495,7 @@ window.XIASUI = {
       ? await window.XIASTickTick.getSyncedMap()
       : {};
     this.renderCourseCards(courses, syncedMap);
+    this.syncToLocalMcpServer();
 
     if (statusEl) {
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1242,10 +1311,20 @@ window.XIASUI = {
       if (openBtn) {
         const courseId = openBtn.dataset.courseId;
         const course = courses.find(c => c.id === courseId);
-        if (course && course.actionElement) {
-          course.actionElement.click();
-        } else {
-          if (course && course.rawRow) {
+        if (course) {
+          if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.set({
+              xiasLastOpenedCourse: {
+                id: course.id,
+                name: course.name,
+                teacher: course.teacher,
+                tasksUrl: course.tasksUrl
+              }
+            });
+          }
+          if (course.actionElement) {
+            course.actionElement.click();
+          } else if (course.rawRow) {
             const link = course.rawRow.querySelector('a, img, input');
             if (link) link.click();
           }
@@ -1425,25 +1504,31 @@ window.XIASUI = {
   async enhanceTasksPage(parsedData) {
     if (document.getElementById('xias-tasks-bar')) return;
 
-    // Если courseName не определился из DOM, пробуем восстановить из сохраненного списка курсов
-    if (!parsedData.courseName && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    // Если courseName не определился из DOM или невалиден, пробуем восстановить из сохраненного списка курсов
+    if ((!parsedData.courseName || !this.isValidCourseName(parsedData.courseName)) && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       try {
-        const { xiasCachedCourses } = await chrome.storage.local.get(['xiasCachedCourses']);
+        const { xiasCachedCourses, xiasLastOpenedCourse } = await chrome.storage.local.get(['xiasCachedCourses', 'xiasLastOpenedCourse']);
         if (Array.isArray(xiasCachedCourses)) {
           const curHref = (typeof window !== 'undefined' && window.location) ? window.location.href : '';
-          const matched = xiasCachedCourses.find(c => c.tasksUrl && (curHref.includes(c.tasksUrl) || (c.tasksUrl.includes('?') && curHref.includes(c.tasksUrl.split('?')[1]))));
+          let matched = xiasCachedCourses.find(c => c.tasksUrl && (curHref.includes(c.tasksUrl) || (c.tasksUrl.includes('?') && curHref.includes(c.tasksUrl.split('?')[1]))));
+          if (!matched && parsedData.teacher && this.isValidCourseName(parsedData.teacher)) {
+            matched = xiasCachedCourses.find(c => c.teacher && (c.teacher.includes(parsedData.teacher) || parsedData.teacher.includes(c.teacher)));
+          }
+          if (!matched && xiasLastOpenedCourse && this.isValidCourseName(xiasLastOpenedCourse.name)) {
+            matched = xiasLastOpenedCourse;
+          }
           if (matched) {
             parsedData.courseName = matched.name;
-            if (!parsedData.teacher) parsedData.teacher = matched.teacher;
+            if (!parsedData.teacher || !this.isValidCourseName(parsedData.teacher)) parsedData.teacher = matched.teacher;
           }
         }
       } catch (e) {}
     }
 
-    const effectiveCourseName = parsedData.courseName || 'Текущая дисциплина';
+    const effectiveCourseName = this.isValidCourseName(parsedData.courseName) ? parsedData.courseName : '';
 
-    // Сохраняем спарсенные задания в кэш курса
-    if (parsedData.assignments && parsedData.assignments.length > 0) {
+    // Сохраняем спарсенные задания в кэш курса только при валидном имени предмета
+    if (effectiveCourseName && parsedData.assignments && parsedData.assignments.length > 0) {
       this.saveCourseAssignments(effectiveCourseName, parsedData.assignments);
     }
 
