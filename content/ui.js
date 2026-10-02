@@ -107,6 +107,21 @@ window.XIASUI = {
     return clean.length >= 2;
   },
 
+  isTaskOverdue(task) {
+    if (!task) return false;
+    // Сданные или находящиеся на проверке задания не считаются просроченными
+    if (task.status === 'DONE' || task.status === 'REVIEW') return false;
+
+    let iso = task.deadlineISO;
+    if (!iso && task.deadlineRaw && window.XIASParser && typeof window.XIASParser.parseDate === 'function') {
+      iso = window.XIASParser.parseDate(task.deadlineRaw);
+    }
+    if (!iso) return false;
+    const deadlineTime = new Date(iso).getTime();
+    if (isNaN(deadlineTime)) return false;
+    return deadlineTime < Date.now();
+  },
+
   async renderDashboard(courses, studentInfo) {
     this.allCourses = courses;
 
@@ -206,6 +221,7 @@ window.XIASUI = {
     // Расчет сводной статистики
     let totalTasksCount = 0;
     let todoCount = 0;
+    let overdueCount = 0;
     let reviewCount = 0;
     let doneCount = 0;
     let totalScoreSum = 0;
@@ -214,6 +230,7 @@ window.XIASUI = {
       totalScoreSum += c.score || 0;
       (c.assignments || []).forEach(t => {
         totalTasksCount++;
+        if (this.isTaskOverdue(t)) overdueCount++;
         if (t.status === 'TODO') todoCount++;
         else if (t.status === 'REVIEW') reviewCount++;
         else if (t.status === 'DONE') doneCount++;
@@ -273,6 +290,13 @@ window.XIASUI = {
           </div>
         </div>
         <div class="xias-stat-card">
+          <div class="xias-stat-icon" style="background:#fef2f2; color:#dc2626;">${svgIcon('clock', 20)}</div>
+          <div>
+            <div class="xias-stat-val" id="xias-stat-overdue-val" style="color:#dc2626;">${overdueCount}</div>
+            <div class="xias-stat-lbl">Просрочено</div>
+          </div>
+        </div>
+        <div class="xias-stat-card">
           <div class="xias-stat-icon" style="background:#fef3c7; color:#b45309;">${svgIcon('search', 20)}</div>
           <div>
             <div class="xias-stat-val" id="xias-stat-review-val" style="color:#b45309;">${reviewCount}</div>
@@ -299,6 +323,7 @@ window.XIASUI = {
       <div class="xias-controls">
         <div class="xias-tabs">
           <button class="xias-tab-btn ${this.activeTab === 'TODO' ? 'active' : ''}" data-tab="TODO"><span class="xias-tab-dot dot-todo"></span>Надо сделать (<span id="xias-tab-todo-count">${todoCount}</span>)</button>
+          <button class="xias-tab-btn ${this.activeTab === 'OVERDUE' ? 'active' : ''}" data-tab="OVERDUE"><span class="xias-tab-dot dot-overdue"></span>Просрочено (<span id="xias-tab-overdue-count">${overdueCount}</span>)</button>
           <button class="xias-tab-btn ${this.activeTab === 'ALL' ? 'active' : ''}" data-tab="ALL">Все предметы</button>
           <button class="xias-tab-btn ${this.activeTab === 'REVIEW' ? 'active' : ''}" data-tab="REVIEW"><span class="xias-tab-dot dot-review"></span>На проверке (<span id="xias-tab-review-count">${reviewCount}</span>)</button>
           <button class="xias-tab-btn ${this.activeTab === 'DONE' ? 'active' : ''}" data-tab="DONE"><span class="xias-tab-dot dot-done"></span>Оценено (<span id="xias-tab-done-count">${doneCount}</span>)</button>
@@ -369,6 +394,7 @@ window.XIASUI = {
 
   updateStatsCounters(courses) {
     let todoCount = 0;
+    let overdueCount = 0;
     let reviewCount = 0;
     let doneCount = 0;
     let totalScoreSum = 0;
@@ -377,6 +403,7 @@ window.XIASUI = {
       totalScoreSum += c.score || 0;
       (c.assignments || []).forEach(t => {
         if (!this.isValidTask(t)) return;
+        if (this.isTaskOverdue(t)) overdueCount++;
         if (t.status === 'TODO') todoCount++;
         else if (t.status === 'REVIEW') reviewCount++;
         else if (t.status === 'DONE') doneCount++;
@@ -385,6 +412,8 @@ window.XIASUI = {
 
     const todoEl = document.getElementById('xias-stat-todo-val');
     if (todoEl) todoEl.textContent = String(todoCount);
+    const overdueEl = document.getElementById('xias-stat-overdue-val');
+    if (overdueEl) overdueEl.textContent = String(overdueCount);
     const reviewEl = document.getElementById('xias-stat-review-val');
     if (reviewEl) reviewEl.textContent = String(reviewCount);
     const doneEl = document.getElementById('xias-stat-done-val');
@@ -394,6 +423,8 @@ window.XIASUI = {
 
     const tabTodo = document.getElementById('xias-tab-todo-count');
     if (tabTodo) tabTodo.textContent = String(todoCount);
+    const tabOverdue = document.getElementById('xias-tab-overdue-count');
+    if (tabOverdue) tabOverdue.textContent = String(overdueCount);
     const tabReview = document.getElementById('xias-tab-review-count');
     if (tabReview) tabReview.textContent = String(reviewCount);
     const tabDone = document.getElementById('xias-tab-done-count');
@@ -559,6 +590,11 @@ window.XIASUI = {
       const matchName = course.name.toLowerCase().includes(query) || (course.teacher && course.teacher.toLowerCase().includes(query));
       
       // Если фильтр по статусу задания
+      if (this.activeTab === 'OVERDUE') {
+        const hasMatchingTask = (course.assignments || []).some(t => this.isTaskOverdue(t) && (query === '' || t.title.toLowerCase().includes(query) || (t.teacher && t.teacher.toLowerCase().includes(query))));
+        return hasMatchingTask;
+      }
+
       if (this.activeTab !== 'ALL') {
         const hasMatchingTask = (course.assignments || []).some(t => t.status === this.activeTab && (query === '' || t.title.toLowerCase().includes(query) || (t.teacher && t.teacher.toLowerCase().includes(query))));
         return hasMatchingTask;
@@ -568,6 +604,25 @@ window.XIASUI = {
     });
 
     if (filteredCourses.length === 0) {
+      if (this.activeTab === 'OVERDUE' && !query) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background:#fff; border-radius:12px; border:1px solid #e2e8f0;">
+            <div style="margin-bottom:8px; color:#10b981; display:flex; justify-content:center;">${svgIcon('check', 32)}</div>
+            <h3 style="margin:0 0 6px;">Нет просроченных заданий</h3>
+            <p style="color:#64748b; margin:0 0 16px;">Все дедлайны соблюдены или ещё не наступили.</p>
+            <button class="xias-btn xias-btn-primary" id="xias-empty-switch-todo" style="margin:0 auto;">Показать «Надо сделать»</button>
+          </div>
+        `;
+        const switchBtn = container.querySelector('#xias-empty-switch-todo');
+        if (switchBtn) {
+          switchBtn.addEventListener('click', () => {
+            const todoBtn = document.querySelector('.xias-tab-btn[data-tab="TODO"]');
+            if (todoBtn) todoBtn.click();
+          });
+        }
+        return;
+      }
+
       if (this.activeTab === 'TODO' && !query) {
         container.innerHTML = `
           <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background:#fff; border-radius:12px; border:1px solid #e2e8f0;">
@@ -600,7 +655,11 @@ window.XIASUI = {
     container.innerHTML = filteredCourses.map(course => {
       const validAssignments = (course.assignments || []).filter(t => this.isValidTask(t));
       const tasks = validAssignments.filter(t => {
-        if (this.activeTab !== 'ALL' && t.status !== this.activeTab) return false;
+        if (this.activeTab === 'OVERDUE') {
+          if (!this.isTaskOverdue(t)) return false;
+        } else if (this.activeTab !== 'ALL' && t.status !== this.activeTab) {
+          return false;
+        }
         if (query && !t.title.toLowerCase().includes(query) && !course.name.toLowerCase().includes(query) && !(t.teacher && t.teacher.toLowerCase().includes(query))) return false;
         return true;
       });
@@ -628,6 +687,7 @@ window.XIASUI = {
                 <div class="xias-no-tasks-desc">${validAssignments.length > 0 ? 'В этой категории нет заданий' : 'Задания еще не синхронизированы. Нажмите «Открыть задания», чтобы загрузить список.'}</div>
               </div>
             ` : tasks.map(task => {
+              const isOverdue = this.isTaskOverdue(task);
               const isSynced = !!syncedTasksMap[task.uniqueId];
               const taskTeacher = task.teacher || course.teacher || 'Преподаватель не указан';
               return `
@@ -640,10 +700,10 @@ window.XIASUI = {
                       <span class="xias-task-title">${escapeHtml(task.title)}</span>
                     </div>
                     <div class="xias-task-meta">
-                      <span class="xias-status-pill xias-status-${task.status}">${escapeHtml(task.statusLabel)}</span>
+                      <span class="xias-status-pill xias-status-${isOverdue ? 'OVERDUE' : task.status}">${escapeHtml(isOverdue ? 'Просрочено' : task.statusLabel)}</span>
                       ${task.deadlineRaw ? `
-                        <span class="xias-task-deadline">
-                          <span class="xias-inline-icon">${svgIcon('calendar', 12)}</span> Крайний срок: <b>${escapeHtml(task.deadlineRaw)}</b>
+                        <span class="xias-task-deadline ${isOverdue ? 'overdue' : ''}">
+                          <span class="xias-inline-icon">${svgIcon(isOverdue ? 'clock' : 'calendar', 12)}</span> Крайний срок: <b>${escapeHtml(task.deadlineRaw)}</b>
                         </span>
                       ` : ''}
                       ${task.resultScore ? `<span>• Балл: <b>${escapeHtml(task.resultScore)} / ${escapeHtml(task.maxScore || 100)}</b></span>` : ''}
@@ -673,7 +733,7 @@ window.XIASUI = {
                             data-max-score="${encodeURIComponent(task.maxScore || '')}"
                             data-comment="${encodeURIComponent(task.comment || '')}"
                             data-synced="${isSynced ? 'true' : 'false'}"
-                            title="${isSynced ? 'В TickTick (нажмите для повторной отправки)' : 'Добавить в TickTick'}">
+                            title="${isSynced ? 'В TickTick (нажмите для удаления)' : 'Добавить в TickTick'}">
                       ${isSynced ? `<span class="xias-inline-icon">${svgIcon('check', 12)}</span> В TickTick` : '+ TickTick'}
                     </button>
                   </div>
@@ -1295,9 +1355,10 @@ window.XIASUI = {
     // Вкладки фильтрации
     document.querySelectorAll('.xias-tab-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        const targetBtn = e.target.closest('.xias-tab-btn') || e.target;
         document.querySelectorAll('.xias-tab-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        this.activeTab = e.target.dataset.tab;
+        targetBtn.classList.add('active');
+        this.activeTab = targetBtn.dataset.tab;
         window.XIASTickTick.getSyncedMap().then(syncedMap => {
           this.renderCourseCards(courses, syncedMap);
         });
@@ -1406,8 +1467,8 @@ window.XIASUI = {
           try {
             await window.XIASTickTick.deleteTask(uniqueId);
             btn.dataset.synced = 'false';
-            btn.title = 'Добавить задачу в TickTick с дедлайном';
-            btn.innerHTML = `<span class="xias-inline-icon">${svgIcon('check', 12)}</span> + TickTick`;
+            btn.title = 'Добавить в TickTick';
+            btn.innerHTML = '+ TickTick';
             btn.classList.remove('xias-btn-synced', 'xias-btn-outline');
             btn.classList.add('xias-btn-ticktick');
             btn.disabled = false;

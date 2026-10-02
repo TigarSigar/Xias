@@ -206,6 +206,10 @@
   background-color: var(--xias-danger);
 }
 
+.xias-tab-dot.dot-overdue {
+  background-color: #dc2626;
+}
+
 .xias-tab-dot.dot-review {
   background-color: var(--xias-warning);
 }
@@ -484,6 +488,17 @@
 .xias-status-TODO {
   background: var(--xias-danger-light);
   color: var(--xias-danger);
+}
+
+.xias-status-OVERDUE {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.xias-task-deadline.overdue {
+  color: #dc2626;
+  font-weight: 600;
 }
 
 .xias-status-REVIEW {

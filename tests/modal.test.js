@@ -560,5 +560,121 @@ test('XIAS UI Modal and Task Bubble Unit Tests', async (t) => {
     assert.equal(stored.xiasCachedAssignments['Основы научной деятельности'][0].title, 'Практическое занятие 1. Работа с библиографией');
     assert.equal(stored.xiasCachedAssignments['Тестирование программного обеспечения'].length, 1);
   });
+
+  await t.test('isTaskOverdue properly identifies overdue tasks by deadline date and ignores DONE/REVIEW tasks', () => {
+    const { UI } = setupUiEnv();
+
+    const pastIso = new Date(Date.now() - 86400000).toISOString();
+    const futureIso = new Date(Date.now() + 86400000).toISOString();
+
+    const overdueTodo = { status: 'TODO', deadlineISO: pastIso };
+    const futureTodo = { status: 'TODO', deadlineISO: futureIso };
+    const overdueDone = { status: 'DONE', deadlineISO: pastIso };
+    const overdueReview = { status: 'REVIEW', deadlineISO: pastIso };
+    const noDeadline = { status: 'TODO' };
+
+    assert.equal(UI.isTaskOverdue(overdueTodo), true, 'Past deadline with status TODO must be overdue');
+    assert.equal(UI.isTaskOverdue(futureTodo), false, 'Future deadline must not be overdue');
+    assert.equal(UI.isTaskOverdue(overdueDone), false, 'Completed task (DONE) must never be overdue');
+    assert.equal(UI.isTaskOverdue(overdueReview), false, 'Under review task (REVIEW) must never be overdue');
+    assert.equal(UI.isTaskOverdue(noDeadline), false, 'Task without deadline must not be overdue');
+  });
+
+  await t.test('OVERDUE tab filters and shows only overdue tasks', async () => {
+    const { UI, document } = setupUiEnv();
+
+    const pastIso = new Date(Date.now() - 86400000).toISOString();
+    const futureIso = new Date(Date.now() + 86400000).toISOString();
+
+    const courses = [
+      {
+        id: 'c_test',
+        name: 'Тестирование программного обеспечения',
+        teacher: 'Бурмин Л. Н.',
+        score: 0,
+        assignments: [
+          {
+            uniqueId: 't_overdue',
+            title: 'Чек-листы и тест-кейсы',
+            status: 'TODO',
+            statusLabel: 'Нужно сделать',
+            deadlineISO: pastIso,
+            deadlineRaw: '26-09-2026 23:59:59'
+          },
+          {
+            uniqueId: 't_future',
+            title: 'Багрепорты',
+            status: 'TODO',
+            statusLabel: 'Нужно сделать',
+            deadlineISO: futureIso,
+            deadlineRaw: '15-10-2026 23:59:59'
+          }
+        ]
+      }
+    ];
+
+    document.body.innerHTML = '<div id="xias-courses-container"></div>';
+
+    // Switch to OVERDUE tab
+    UI.activeTab = 'OVERDUE';
+    UI.renderCourseCards(courses, {});
+
+    const container = document.getElementById('xias-courses-container');
+    assert.ok(container.innerHTML.includes('Чек-листы и тест-кейсы'), 'Overdue task must be visible in OVERDUE tab');
+    assert.ok(!container.innerHTML.includes('Багрепорты'), 'Future task must NOT be visible in OVERDUE tab');
+    assert.ok(container.innerHTML.includes('xias-status-OVERDUE'), 'Task pill must have xias-status-OVERDUE class');
+    assert.ok(container.innerHTML.includes('Просрочено'), 'Task pill text must say "Просрочено"');
+  });
+
+  await t.test('xias-single-sync-btn un-sync removes checkmark and reverts cleanly to + TickTick', async () => {
+    let deletedId = null;
+    const { UI, document, window } = setupUiEnv();
+    window.XIASTickTick.deleteTask = async (id) => {
+      deletedId = id;
+      return { success: true };
+    };
+
+    const courses = [
+      {
+        id: 'c1',
+        name: 'Тестирование ПО',
+        teacher: 'Бурмин Л. Н.',
+        assignments: [
+          {
+            uniqueId: 't1',
+            title: 'Чек-листы',
+            status: 'TODO',
+            statusLabel: 'Нужно сделать'
+          }
+        ]
+      }
+    ];
+
+    document.body.innerHTML = `
+      <div id="xias-app-root"></div>
+      <div id="xias-courses-container"></div>
+    `;
+
+    // Render with task already synced (syncedMap has 't1')
+    UI.renderCourseCards(courses, { t1: 'ticktick_item_1' });
+    UI.bindEvents(courses, null);
+
+    const btn = document.querySelector('.xias-single-sync-btn');
+    assert.ok(btn);
+    assert.equal(btn.dataset.synced, 'true');
+    assert.ok(btn.innerHTML.includes('В TickTick'));
+
+    // Click to un-sync
+    const clickEvt = new DOMEvent('click', { bubbles: true });
+    btn.dispatchEvent(clickEvt);
+
+    await new Promise(r => setTimeout(r, 20));
+
+    assert.equal(deletedId, 't1', 'Must call deleteTask with task uniqueId');
+    assert.equal(btn.dataset.synced, 'false', 'dataset.synced must become false');
+    assert.equal(btn.innerHTML, '+ TickTick', 'Button innerHTML must be "+ TickTick" without checkmark');
+    assert.ok(!btn.innerHTML.includes('<svg'), 'Button must NOT contain checkmark SVG icon');
+    assert.ok(btn.classList.contains('xias-btn-ticktick'), 'Button must have xias-btn-ticktick class');
+  });
 });
 

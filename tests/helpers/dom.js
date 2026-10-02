@@ -120,6 +120,21 @@ class DOMElement extends DOMNode {
     };
   }
 
+  get dataset() {
+    const self = this;
+    return new Proxy({}, {
+      get(target, prop) {
+        const kebab = 'data-' + String(prop).replace(/([A-Z])/g, '-$1').toLowerCase();
+        return self.attributes[kebab];
+      },
+      set(target, prop, val) {
+        const kebab = 'data-' + String(prop).replace(/([A-Z])/g, '-$1').toLowerCase();
+        self.attributes[kebab] = String(val);
+        return true;
+      }
+    });
+  }
+
   get type() {
     return this.attributes['type'] || '';
   }
